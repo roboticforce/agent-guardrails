@@ -127,17 +127,72 @@ Bash scripts that run before every command execution. They inspect the command a
 
 Documentation explaining what each guardrail protects against and why. Link these in onboarding docs so your team understands the reasoning.
 
-## How enforcement works
+## How it works
 
-Three layers, from hardest to softest:
+When Claude Code wants to run a shell command, it doesn't go straight to your terminal. The command passes through multiple enforcement layers before it can execute. If any layer rejects it, the command is killed and never reaches a shell.
+
+```mermaid
+flowchart TD
+    A["Claude Code proposes a command
+    e.g. terraform destroy"] --> B{"Layer 1: Deny Rules
+    settings.json"}
+    B -->|"Pattern matches
+    deny list"| BLOCKED1["BLOCKED
+    Command never executes"]
+    B -->|"No match"| C{"Layer 2: PreToolUse Hooks
+    hooks.json"}
+    C -->|"Guard script
+    exits with code 2"| BLOCKED2["BLOCKED
+    Command never executes"]
+    C -->|"Guard script
+    exits with code 0"| D{"Layer 3: User Approval
+    (if permissions require it)"}
+    D -->|"User denies"| BLOCKED3["BLOCKED
+    Command never executes"]
+    D -->|"User approves"| E["Command executes in shell"]
+
+    style BLOCKED1 fill:#d32f2f,color:#fff
+    style BLOCKED2 fill:#d32f2f,color:#fff
+    style BLOCKED3 fill:#d32f2f,color:#fff
+    style E fill:#388e3c,color:#fff
+    style A fill:#1565c0,color:#fff
+    style B fill:#f57f17,color:#000
+    style C fill:#f57f17,color:#000
+    style D fill:#f57f17,color:#000
+```
+
+### Layer 1: Deny rules (`settings.json`)
+
+Pattern-based blocklist built into Claude Code's permission system. When a command matches a deny pattern, Claude Code **refuses to call the tool at all**. The agent cannot override this - it's enforced by the runtime, not the LLM.
+
+```json
+"Bash(command:terraform destroy*)"
+"Bash(command:*DROP DATABASE*)"
+"Bash(command:git push --force origin main*)"
+```
+
+### Layer 2: PreToolUse hooks (`hooks.json`)
+
+Bash scripts that run **before** every Bash tool call. Claude Code pipes the full tool input (as JSON) into the script via stdin. The script inspects the command and decides:
+
+- **Exit 0** - allow the command to proceed
+- **Exit 2** - block the command and show the user why
+
+This is more flexible than deny rules - scripts can use regex, check multiple patterns, and provide detailed error messages. Claude Code enforces the exit code. The agent cannot override a hook that returns exit code 2.
+
+### Layer 3: CLAUDE.md instructions
+
+Natural language instructions that tell the agent not to run destructive commands. This is the weakest layer - the agent follows instructions but could theoretically be prompted to ignore them. Never rely on this alone.
+
+### Why all three?
 
 | Layer | Mechanism | Bypassable from agent? |
 |-------|-----------|----------------------|
-| `settings.json` deny rules | Pattern match on tool calls | No |
+| Deny rules | Pattern match on tool calls | No |
 | Hooks (exit code 2) | Arbitrary script logic | No |
 | `CLAUDE.md` instructions | LLM instruction following | Theoretically yes |
 
-Use all three. Defense in depth.
+Defense in depth. Deny rules catch exact patterns. Hooks catch variations with regex. Instructions handle everything else. A destructive command has to get past all three layers to execute.
 
 ## Verifying your install
 
