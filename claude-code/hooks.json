@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hook": ".claude/scripts/terraform-guard.sh"
+      },
+      {
+        "matcher": "Bash",
+        "hook": ".claude/scripts/database-guard.sh"
+      },
+      {
+        "matcher": "Bash",
+        "hook": ".claude/scripts/kubernetes-guard.sh"
+      },
+      {
+        "matcher": "Bash",
+        "hook": ".claude/scripts/cloud-guard.sh"
+      },
+      {
+        "matcher": "Bash",
+        "hook": ".claude/scripts/git-guard.sh"
+      }
+    ]
+  }
+}
