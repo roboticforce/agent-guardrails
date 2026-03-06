@@ -172,6 +172,12 @@ rm -rf .claude/scripts/
 rm .claude/settings.json
 ```
 
+## "I need to run a blocked command"
+
+Run it manually in your terminal. These guardrails exist specifically to ensure a human directly executes and confirms destructive operations. The agent can help you prepare the command, review the plan, and explain what it will do - but the final execution should be yours.
+
+There is no bypass mode by design. If an agent can be told to bypass a guardrail, the guardrail doesn't exist.
+
 ## Customizing
 
 Every team has different infrastructure. Fork this repo and:
