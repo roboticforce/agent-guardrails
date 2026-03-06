@@ -10,32 +10,106 @@ AI coding agents are powerful but dangerous when given access to infrastructure 
 
 This repo provides ready-to-use guardrails that **hard-block** dangerous commands at the tool level, before they ever reach a shell.
 
-## Quick start
+## Prerequisites
 
-Copy the Claude Code configuration into your project:
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- [jq](https://jqlang.github.io/jq/download/) installed (used by guard scripts to parse tool input)
+
+## Install
+
+Clone the repo:
 
 ```bash
-# Copy deny rules and hooks into your project
-cp -r claude-code/.claude /path/to/your/project/
+git clone https://github.com/roboticforce/agent-guardrails.git
+cd agent-guardrails
+```
 
-# Make hook scripts executable
+Then open Claude Code and paste the following prompt:
+
+### Global install (all projects)
+
+```
+Install agent-guardrails globally from ./agent-guardrails (update the path to
+wherever you cloned it). Read the settings.json, hooks.json, and all scripts
+from the claude-code/ directory in the repo.
+
+For settings.json: merge the permissions.deny array into my existing
+~/.claude/settings.json without removing or overwriting any of my other
+settings. If I don't have a settings.json yet, create one with just the
+permissions block.
+
+For hooks.json: copy to ~/.claude/hooks.json. Update all hook paths to use
+absolute paths with $HOME/.claude/scripts/ so they work globally across all
+projects. If I already have a hooks.json, merge the PreToolUse hooks into
+my existing array.
+
+For scripts: copy the scripts/ directory to ~/.claude/scripts/ and make
+all .sh files executable.
+
+After installing, verify by dry-running one guard script, e.g.:
+echo '{"tool_input":{"command":"terraform destroy"}}' | ~/.claude/scripts/terraform-guard.sh
+```
+
+### Per-project install
+
+```
+Install agent-guardrails into this project from ~/dev/agent-guardrails (update
+the path to wherever you cloned it). Read the settings.json, hooks.json, and
+all scripts from the claude-code/ directory in the repo.
+
+Copy settings.json to .claude/settings.json in this project.
+Copy hooks.json to .claude/hooks.json in this project.
+Copy the scripts/ directory to .claude/scripts/ in this project.
+Make all .sh files executable.
+Add .claude/scripts/ to .gitignore if it's not already there.
+
+After installing, verify by dry-running one guard script, e.g.:
+echo '{"tool_input":{"command":"terraform destroy"}}' | .claude/scripts/terraform-guard.sh
+```
+
+### Manual install (without Claude Code)
+
+<details>
+<summary>Click to expand</summary>
+
+**Per-project:**
+
+```bash
+cp -r claude-code/.claude /path/to/your/project/
 chmod +x /path/to/your/project/.claude/scripts/*.sh
 ```
 
-Or install globally for all projects:
+**Global:**
+
+> **Warning:** The `cp` commands below will overwrite existing files. If you
+> already have a `~/.claude/settings.json` or `~/.claude/hooks.json`, back them
+> up first and manually merge the JSON after copying.
 
 ```bash
+# Back up existing config
+cp ~/.claude/settings.json ~/.claude/settings.json.bak 2>/dev/null
+cp ~/.claude/hooks.json ~/.claude/hooks.json.bak 2>/dev/null
+
+# Copy files
 cp claude-code/settings.json ~/.claude/settings.json
 cp claude-code/hooks.json ~/.claude/hooks.json
 cp -r claude-code/scripts ~/.claude/scripts
 chmod +x ~/.claude/scripts/*.sh
+
+# IMPORTANT: For global install, update hook paths in ~/.claude/hooks.json
+# to use absolute paths. Replace all occurrences of:
+#   .claude/scripts/
+# with:
+#   ~/.claude/scripts/
 ```
+
+</details>
 
 ## What's included
 
 ### Deny rules (`settings.json`)
 
-Pattern-based blocklist that prevents Claude Code from executing matching commands. These are **hard blocks** - the agent won't even attempt them.
+Pattern-based blocklist that prevents Claude Code from executing matching commands. These are **hard blocks** - the agent cannot execute them.
 
 ### Hook scripts
 
@@ -64,6 +138,39 @@ Three layers, from hardest to softest:
 | `CLAUDE.md` instructions | LLM instruction following | Theoretically yes |
 
 Use all three. Defense in depth.
+
+## Verifying your install
+
+Test that the guardrails are working:
+
+```bash
+# Should print "BLOCKED" and exit with code 2
+echo '{"tool_input":{"command":"terraform destroy"}}' | ~/.claude/scripts/terraform-guard.sh
+
+# Should print "BLOCKED" and exit with code 2
+echo '{"tool_input":{"command":"DROP DATABASE production"}}' | ~/.claude/scripts/database-guard.sh
+
+# Should exit silently with code 0 (allowed)
+echo '{"tool_input":{"command":"terraform plan"}}' | ~/.claude/scripts/terraform-guard.sh
+```
+
+## Uninstall
+
+### Global
+
+```bash
+rm ~/.claude/hooks.json
+rm -rf ~/.claude/scripts/
+# Edit ~/.claude/settings.json and remove the "permissions" block
+```
+
+### Per-project
+
+```bash
+rm .claude/hooks.json
+rm -rf .claude/scripts/
+rm .claude/settings.json
+```
 
 ## Customizing
 

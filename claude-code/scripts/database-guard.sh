@@ -1,37 +1,40 @@
 #!/bin/bash
 # database-guard.sh - Block destructive database commands
 # Exit 0 = allow, Exit 2 = block (message shown to user)
+set -euo pipefail
+
+if ! command -v jq &>/dev/null; then
+  echo "BLOCKED: jq is required for agent-guardrails but not installed." >&2
+  echo "Install jq: https://jqlang.github.io/jq/download/" >&2
+  exit 2
+fi
 
 INPUT=$(cat -)
-COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+COMMAND=$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')
 
 if [ -z "$COMMAND" ]; then
   exit 0
 fi
 
+# All patterns matched case-insensitively via grep -i below
 BLOCKED_PATTERNS=(
-  "DROP DATABASE"
-  "DROP TABLE"
-  "DROP SCHEMA"
-  "TRUNCATE"
-  "DELETE FROM.*WHERE 1"
-  "DELETE FROM.*WITHOUT"
   "drop database"
   "drop table"
   "drop schema"
   "truncate"
+  "delete from.*where 1"
+  "delete from.*without"
   "dropdb"
   "mysql.*-e.*drop"
-  "psql.*DROP"
   "psql.*drop"
   "mongosh.*dropDatabase"
   "mongosh.*db\.drop"
-  "redis-cli.*FLUSHALL"
-  "redis-cli.*FLUSHDB"
+  "redis-cli.*flushall"
+  "redis-cli.*flushdb"
 )
 
 for pattern in "${BLOCKED_PATTERNS[@]}"; do
-  if echo "$COMMAND" | grep -qiE "$pattern"; then
+  if printf '%s\n' "$COMMAND" | grep -qiE "$pattern"; then
     echo "BLOCKED by agent-guardrails: Destructive database command detected." >&2
     echo "" >&2
     echo "  Command: $COMMAND" >&2
