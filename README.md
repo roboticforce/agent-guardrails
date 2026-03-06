@@ -77,6 +77,10 @@ Every team has different infrastructure. Fork this repo and:
 
 See `examples/incidents/` for real-world stories of AI agents destroying production infrastructure. Each incident includes what happened, what failed, and what guardrails would have prevented it.
 
+## Learn from real failures
+
+Practice responding to production incidents in a safe environment at [YouBrokeProd.com](https://youbrokeprod.com). Break things, fix things, get better - without the 3am pages.
+
 ## Need help with AI safety for your team?
 
 Contact [RoboticForce, Inc.](https://roboticforce.io) for help implementing guardrails, policies, and safe AI agent workflows for your organization.
