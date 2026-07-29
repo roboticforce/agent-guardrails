@@ -6,7 +6,7 @@ Built for [Claude Code](https://docs.anthropic.com/en/docs/claude-code), with pa
 
 ## Why this exists
 
-AI coding agents are powerful but dangerous when given access to infrastructure tooling. A single `terraform destroy` or `DROP DATABASE` can wipe production in seconds. Human-in-the-loop approval is not sufficient - people approve destructive commands when they don't fully understand the scope.
+AI coding agents are powerful but dangerous when given access to infrastructure tooling. A single `terraform destroy` or `DROP DATABASE` can wipe production in seconds. Human-in-the-loop approval is not sufficient - people approve destructive commands when they don't fully understand the scope. In July 2026 an Opus 5 agent in "ultracode" mode ran `prisma migrate diff --shadow-database-url=$DATABASE_URL_UNPOOLED` against a production Supabase database and dropped every table, because the shadow-database URL was pointed at prod and the developer approving it did not realize "diff" resets the shadow database first (see `examples/incidents/opus5-ultracode-database-wipe.md`).
 
 This repo provides ready-to-use guardrails that **hard-block** dangerous commands at the tool level, before they ever reach a shell.
 
@@ -119,6 +119,7 @@ Bash scripts that run before every command execution. They inspect the command a
 |--------|---------------|
 | `terraform-guard.sh` | `destroy`, `apply -auto-approve`, state manipulation |
 | `database-guard.sh` | `DROP DATABASE`, `DROP TABLE`, `TRUNCATE`, destructive migrations |
+| `prisma-guard.sh` | Prisma `--shadow-database-url`, `migrate reset`, `db push --force-reset` / `--accept-data-loss`, plus the equivalent Rails/Flyway/Alembic/Sequelize/Knex/TypeORM reset and drop commands |
 | `kubernetes-guard.sh` | `delete namespace`, `delete -f`, `drain --force` |
 | `cloud-guard.sh` | Instance termination, resource deletion across AWS/GCP/Azure/DO |
 | `git-guard.sh` | Force push to main/master/production, `reset --hard`, branch deletion |
@@ -205,6 +206,9 @@ echo '{"tool_input":{"command":"terraform destroy"}}' | ~/.claude/scripts/terraf
 # Should print "BLOCKED" and exit with code 2
 echo '{"tool_input":{"command":"DROP DATABASE production"}}' | ~/.claude/scripts/database-guard.sh
 
+# Should print "BLOCKED" and exit with code 2 (the July 2026 Opus 5 ultracode command)
+echo '{"tool_input":{"command":"prisma migrate diff --shadow-database-url=$DATABASE_URL_UNPOOLED"}}' | ~/.claude/scripts/prisma-guard.sh
+
 # Should exit silently with code 0 (allowed)
 echo '{"tool_input":{"command":"terraform plan"}}' | ~/.claude/scripts/terraform-guard.sh
 ```
@@ -244,6 +248,9 @@ Every team has different infrastructure. Fork this repo and:
 ## Real incidents
 
 See `examples/incidents/` for real-world stories of AI agents destroying production infrastructure. Each incident includes what happened, what failed, and what guardrails would have prevented it.
+
+- [`terraform-destroy-production.md`](examples/incidents/terraform-destroy-production.md) - a `terraform destroy` approved without state wiped an RDS database and its snapshots.
+- [`opus5-ultracode-database-wipe.md`](examples/incidents/opus5-ultracode-database-wipe.md) - a `prisma migrate diff --shadow-database-url=...` pointed at prod dropped every table. This is the incident `prisma-guard.sh` was added for.
 
 ## Learn from real failures
 
