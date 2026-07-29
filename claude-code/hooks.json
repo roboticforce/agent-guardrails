@@ -11,6 +11,10 @@
       },
       {
         "matcher": "Bash",
+        "hook": ".claude/scripts/prisma-guard.sh"
+      },
+      {
+        "matcher": "Bash",
         "hook": ".claude/scripts/kubernetes-guard.sh"
       },
       {
